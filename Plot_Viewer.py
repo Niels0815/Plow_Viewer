@@ -22,8 +22,18 @@ class CSVPlotApp:
         self.checkbox_frame = tk.Frame(root)
         self.checkbox_frame.pack(pady=10)
 
+        # Add time range entry fields
+        tk.Label(root, text="Start Time (e.g. 2025-05-14 11:30:00)").pack()
+        self.start_time_entry = tk.Entry(root, width=30)
+        self.start_time_entry.pack()
+
+        tk.Label(root, text="End Time (e.g. 2025-05-14 12:30:00)").pack()
+        self.end_time_entry = tk.Entry(root, width=30)
+        self.end_time_entry.pack()
+
         self.plot_button = tk.Button(root, text="Plot Selected", command=self.plot_selected)
         self.plot_button.pack(pady=10)
+
 
     def load_csv(self):
         file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
@@ -57,11 +67,25 @@ class CSVPlotApp:
             cb = tk.Checkbutton(self.checkbox_frame, text=col, variable=var)
             cb.pack(anchor='w')
             self.checkbox_vars[col] = var
-
+            
     def plot_selected(self):
         if self.df is None:
             messagebox.showwarning("No File", "Please load a CSV file first.")
             return
+
+        # Get time range from user input
+        start_str = self.start_time_entry.get().strip()
+        end_str = self.end_time_entry.get().strip()
+
+        try:
+            start_time = pd.to_datetime(start_str) if start_str else self.df['timestamp'].min()
+            end_time = pd.to_datetime(end_str) if end_str else self.df['timestamp'].max()
+        except Exception as e:
+            messagebox.showerror("Time Format Error", f"Could not parse time input:\n{e}")
+            return
+
+        # Filter the DataFrame
+        filtered_df = self.df[(self.df['timestamp'] >= start_time) & (self.df['timestamp'] <= end_time)]
 
         selected_cols = [col for col, var in self.checkbox_vars.items() if var.get()]
         if not selected_cols:
@@ -70,11 +94,11 @@ class CSVPlotApp:
 
         plt.figure(figsize=(14, 6))
         for col in selected_cols:
-            plt.plot(self.df['timestamp'], self.df[col], label=col)
+            plt.plot(filtered_df['timestamp'], filtered_df[col], label=col)
 
         plt.xlabel("Time")
         plt.ylabel("Value")
-        plt.title("Selected Columns Over Time")
+        plt.title(f"Selected Columns from {start_time} to {end_time}")
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
